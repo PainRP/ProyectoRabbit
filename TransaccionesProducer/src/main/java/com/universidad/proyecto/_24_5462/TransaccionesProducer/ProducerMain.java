@@ -41,7 +41,10 @@ public class ProducerMain {
                 if (response.statusCode() == 200) {
                     LoteTransacciones lote = mapper.readValue(response.body(), LoteTransacciones.class);
                     System.out.println("Lote recibido: " + lote.getLoteId() + " con " + lote.getTransacciones().size() + " transacciones.");
-
+                    
+                    channel.queueDeclare("cola_duplicados", true, false, false, null);
+                    System.out.println(" [x] Cola 'cola_duplicados' declarada y lista.");
+                    
                     int transaccionesEnviadas = 0;
 
                     for (Transaccion tx : lote.getTransacciones()) { // Iteramos sobre cada transacción del lote y se asignan los datos

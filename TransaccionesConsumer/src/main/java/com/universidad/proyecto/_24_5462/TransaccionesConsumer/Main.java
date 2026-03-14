@@ -31,6 +31,7 @@ public class Main {
         String[] bancos = {"BANRURAL", "BAC", "BI", "GYT"};
 
         Set<String> transaccionesProcesadas = new HashSet<>(); //NO lo hemos visto en clase, pero cuando realice un ejercicio de leetcode, al comprobar mi respuesta con otros, me fije que utilizaban entre un hashmap y un hashset, solo que el hashset sirve para un solo guarda una cosa que nos sirve para comprobar que no hayan duplicados
+        String colaDuplicados = "cola_duplicados";
         
         try {
             Connection connection = factory.newConnection();
@@ -45,6 +46,10 @@ public class Main {
 
                 try {
                     Transaccion tx = mapper.readValue(mensajeJson, Transaccion.class);
+                    String idTx = tx.getIdTransaccion();
+                    if(transaccionesProcesadas.contains(idTx)) {
+                    	
+                    }
                     System.out.println("\n [x] Procesando transacción " + tx.getIdTransaccion() + " de la cola " + colaOrigen);
 
                     HttpRequest request = HttpRequest.newBuilder() // solicitud HTTP
