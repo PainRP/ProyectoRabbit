@@ -47,9 +47,14 @@ public class Main {
                 try {
                     Transaccion tx = mapper.readValue(mensajeJson, Transaccion.class);
                     String idTx = tx.getIdTransaccion();
-                    if(transaccionesProcesadas.contains(idTx)) {
-                    	
-                    }
+                    if(transaccionesProcesadas.contains(idTx)) { //ya que el hashset no permite duplicados solo puede haber uno y esto nos dira que ya existe
+                    	channel.basicPublish("", colaDuplicados, null, mensajeJson.getBytes(StandardCharsets.UTF_8));
+                        
+                        System.out.println("ID Transacción: " + idTx + " | Estado: Duplicada | Cola destino: " + colaDuplicados);
+                        
+                        
+                        channel.basicAck(deliveryTag, false); //quitar de la cola principal
+                    }else {
                     System.out.println("\n [x] Procesando transacción " + tx.getIdTransaccion() + " de la cola " + colaOrigen);
 
                     HttpRequest request = HttpRequest.newBuilder() // solicitud HTTP
@@ -69,7 +74,7 @@ public class Main {
                         // Aceptamos 200 o 201 como éxito
                         if (response.statusCode() == 200 || response.statusCode() == 201) { 
                             exito = true;
-                            System.out.println("     [v] API respondió " + response.statusCode() + ". Guardado exitoso. Enviando ACK.");
+                            System.out.println("ID Transacción: " + idTx + " | Estado: Procesada | Cola destino: API POST");
                             channel.basicAck(deliveryTag, false);
                         } else {
                             System.err.println("     [!] Error API (Intento " + intentos + "): HTTP " + response.statusCode());
@@ -84,8 +89,9 @@ public class Main {
                         System.err.println("     [X] Falló tras reintentos. Devolviendo mensaje a RabbitMQ (NACK).");
                         channel.basicNack(deliveryTag, false, true); 
                     }
-
-                } catch (Exception e) {
+               }
+                    
+            } catch (Exception e) {
                     System.err.println("     [X] Error procesando mensaje: " + e.getMessage());
                     channel.basicNack(deliveryTag, false, true); 
                 }
