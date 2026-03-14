@@ -27,6 +27,6 @@ public class Problema2 {
 		}
 		
 		
-		return new int[] {secondMax,secondMin};
+		return new int[] {secondMin,secondMax};
 	}
 }

@@ -1,5 +1,7 @@
 package main;
 
+import java.util.Arrays;
+
 import serie1_Puntaje_de_Arreglo.Problema1;
 import serie1_Puntaje_de_Arreglo.Problema2;
 
@@ -9,7 +11,8 @@ public class Main {
 		Problema1 pruebascore = new Problema1();
 		Problema2 pruebasecondMINMAX = new Problema2();
 		
-		System.out.println(pruebascore.score(new int[] {1,2,3,4,5});
+		System.out.println(pruebascore.score(new int[] {1,2,3,4,5,0}));
+		System.out.println(Arrays.toString(pruebasecondMINMAX.secondMinMax(new int[] {1,2,3,4,5,0})));
 	}
 
 }
