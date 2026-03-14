@@ -13,15 +13,20 @@ public class Problema2 {
 			if(i > max) {
 				secondMax = max;
 				max = i;
+			}else if(i > secondMax && i < max) {
+				secondMax = i;
 			}
 			
-			else if (i < min) {
+			if (i < min) {
+				secondMin = min;
 				min = i;
+			}else if(i < secondMin && i > min) {
+				secondMin = i;
 			}
 			
 		}
 		
 		
-		return new int[] {secondMax,secondMin};;
+		return new int[] {secondMax,secondMin};
 	}
 }
