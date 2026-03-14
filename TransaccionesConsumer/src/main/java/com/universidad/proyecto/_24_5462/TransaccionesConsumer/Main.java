@@ -5,6 +5,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +30,8 @@ public class Main {
 
         String[] bancos = {"BANRURAL", "BAC", "BI", "GYT"};
 
+        Set<String> transaccionesProcesadas = new HashSet<>(); //NO lo hemos visto en clase, pero cuando realice un ejercicio de leetcode, al comprobar mi respuesta con otros, me fije que utilizaban entre un hashmap y un hashset, solo que el hashset sirve para un solo guarda una cosa que nos sirve para comprobar que no hayan duplicados
+        
         try {
             Connection connection = factory.newConnection();
             Channel channel = connection.createChannel();
