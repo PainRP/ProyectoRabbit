@@ -74,6 +74,7 @@ public class Main {
                         // Aceptamos 200 o 201 como éxito
                         if (response.statusCode() == 200 || response.statusCode() == 201) { 
                             exito = true;
+                            transaccionesProcesadas.add(idTx);
                             System.out.println("ID Transacción: " + idTx + " | Estado: Procesada | Cola destino: API POST");
                             channel.basicAck(deliveryTag, false);
                         } else {
