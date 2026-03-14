@@ -5,7 +5,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -20,18 +22,15 @@ public class Main {
     private static final String POST_URL = "https://7e0d9ogwzd.execute-api.us-east-1.amazonaws.com/default/guardarTransacciones";
 
     public static void main(String[] args) {
-        ConnectionFactory factory = new ConnectionFactory(); //Conexión
-        factory.setHost("localhost"); // hardcode indicando que RabbitMQ está en localhost
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost"); 
 
         HttpClient httpClient = HttpClient.newHttpClient(); 
-        
         ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false); //
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false); 
 
         String[] bancos = {"BANRURAL", "BAC", "BI", "GYT"};
-
-        Set<String> transaccionesProcesadas = new HashSet<>(); //NO lo hemos visto en clase, pero cuando realice un ejercicio de leetcode, al comprobar mi respuesta con otros, me fije que utilizaban entre un hashmap y un hashset, solo que el hashset sirve para un solo guarda una cosa que nos sirve para comprobar que no hayan duplicados
-        String colaDuplicados = "cola_duplicados";
+        Set<String> transaccionesProcesadas = new HashSet<>(); 
         
         try {
             Connection connection = factory.newConnection();
@@ -44,63 +43,78 @@ public class Main {
                 long deliveryTag = delivery.getEnvelope().getDeliveryTag();
                 String colaOrigen = delivery.getEnvelope().getRoutingKey();
 
+                Integer prioridadNum = delivery.getProperties().getPriority();
+                String prioridadTexto = (prioridadNum != null && prioridadNum == 10) ? "Alta" : "Normal";
+
                 try {
                     Transaccion tx = mapper.readValue(mensajeJson, Transaccion.class);
                     String idTx = tx.getIdTransaccion();
-                    if(transaccionesProcesadas.contains(idTx)) { //ya que el hashset no permite duplicados solo puede haber uno y esto nos dira que ya existe
-                    	channel.basicPublish("", colaDuplicados, null, mensajeJson.getBytes(StandardCharsets.UTF_8));
+
+                    if(transaccionesProcesadas.contains(idTx)) { 
+                    	channel.basicPublish("", "cola_duplicados", null, mensajeJson.getBytes(StandardCharsets.UTF_8));
                         
-                        System.out.println("ID Transacción: " + idTx + " | Estado: Duplicada | Cola destino: " + colaDuplicados);
                         
+                        System.out.println("id Transacción: " + idTx + " | estado:[Duplicada] | prioridad:[" + prioridadTexto + "] | cola destino: cola_duplicados");
                         
-                        channel.basicAck(deliveryTag, false); //quitar de la cola principal
-                    }else {
-                    System.out.println("\n [x] Procesando transacción " + tx.getIdTransaccion() + " de la cola " + colaOrigen);
+                        channel.basicAck(deliveryTag, false); 
+                    } else {
+                    	System.out.println("\n [x] Procesando transacción " + tx.getIdTransaccion() + " de la cola " + colaOrigen);
+                        HttpRequest request = HttpRequest.newBuilder()
+                                .uri(URI.create(POST_URL))
+                                .header("Content-Type", "application/json")  
+                                .POST(HttpRequest.BodyPublishers.ofString(mensajeJson))
+                                .build();
 
-                    HttpRequest request = HttpRequest.newBuilder() // solicitud HTTP
-                            .uri(URI.create(POST_URL)) // endpoint
-                            .header("Content-Type", "application/json")  // encabezado indicando que el cuerpo es JSON
-                            .POST(HttpRequest.BodyPublishers.ofString(mensajeJson)) // cuerpo
-                            .build();
+                        boolean exito = false;
+                        int intentos = 0;
+                        int maxIntentos = 2;
 
-                    boolean exito = false;
-                    int intentos = 0;
-                    int maxIntentos = 2;
+                        while (intentos < maxIntentos && !exito) {
+                            intentos++;
+                            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-                    while (intentos < maxIntentos && !exito) {
-                        intentos++;
-                        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-                        // Aceptamos 200 o 201 como éxito
-                        if (response.statusCode() == 200 || response.statusCode() == 201) { 
-                            exito = true;
-                            transaccionesProcesadas.add(idTx);
-                            System.out.println("ID Transacción: " + idTx + " | Estado: Procesada | Cola destino: API POST");
-                            channel.basicAck(deliveryTag, false);
-                        } else {
-                            System.err.println("     [!] Error API (Intento " + intentos + "): HTTP " + response.statusCode());
-                            if (intentos < maxIntentos) {
-                                System.out.println("     [!] Reintentando en 2 segundos...");
-                                Thread.sleep(2000); 
+                            if (response.statusCode() == 200 || response.statusCode() == 201) { 
+                                exito = true;
+                                transaccionesProcesadas.add(idTx);
+                                
+                                
+                                System.out.println("id Transacción: " + idTx + " | estado:[Procesada] | prioridad:[" + prioridadTexto + "] | cola destino: API POST");
+                                
+                                channel.basicAck(deliveryTag, false);
+                            } else {
+                            	System.err.println("     [!] Error API (Intento " + intentos + "): HTTP " + response.statusCode());
+                                if (intentos < maxIntentos) {
+                                	System.out.println("     [!] Reintentando en 2 segundos...");
+                                    Thread.sleep(2000); 
+                                }
                             }
                         }
-                    }
 
-                    if (!exito) {
-                        System.err.println("     [X] Falló tras reintentos. Devolviendo mensaje a RabbitMQ (NACK).");
-                        channel.basicNack(deliveryTag, false, true); 
+                        
+                        if (!exito) {
+                        	channel.basicPublish("", "cola_errores", null, mensajeJson.getBytes(StandardCharsets.UTF_8));
+                            
+                            
+                            System.out.println("id Transacción: " + idTx + " | estado:[Error] | prioridad:[" + prioridadTexto + "] | cola destino: cola_errores");
+                            
+                            channel.basicAck(deliveryTag, false); 
+                        }
                     }
-               }
                     
-            } catch (Exception e) {
-                    System.err.println("     [X] Error procesando mensaje: " + e.getMessage());
-                    channel.basicNack(deliveryTag, false, true); 
+                } catch (Exception e) {
+                	channel.basicPublish("", "cola_errores", null, mensajeJson.getBytes(StandardCharsets.UTF_8));
+                	System.err.println("     [X] Error procesando mensaje: " + e.getMessage());
+                    channel.basicAck(deliveryTag, false); 
                 }
             };
 
+          
+            Map<String, Object> queueArgs = new HashMap<>();
+            queueArgs.put("x-max-priority", 10);
+
             for (String banco : bancos) {
-                channel.queueDeclare(banco, true, false, false, null); // Declaramos la cola por si no existe
-                channel.basicConsume(banco, false, deliverCallback, consumerTag -> { }); //
+                channel.queueDeclare(banco, true, false, false, queueArgs); 
+                channel.basicConsume(banco, false, deliverCallback, consumerTag -> { }); 
             }
 
         } catch (Exception e) {
