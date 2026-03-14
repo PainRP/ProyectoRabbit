@@ -2,13 +2,26 @@ package serie1_Puntaje_de_Arreglo;
 
 public class Problema2 {
 	public static int[] secondMinMax(int[] numbers) {
-		int[] secondMINMAX = new int[2];
+		
+		int max= numbers[0];
+		int secondMax= numbers[0];
+		int min = numbers[0];
+		int secondMin = numbers[0];
+		
 		
 		for(int i: numbers) {
+			if(i > max) {
+				secondMax = max;
+				max = i;
+			}
+			
+			else if (i < min) {
+				min = i;
+			}
 			
 		}
 		
 		
-		return secondMINMAX;
+		return new int[] {secondMax,secondMin};;
 	}
 }
